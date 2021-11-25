@@ -1,0 +1,264 @@
+**free                                                       
+Ctl-Opt DftActGrp(*no);                                      
+                                                             
+// File Declarations                                         
+                                                             
+Dcl-F hremail usage(*input) keyed;                           
+Dcl-F Jrrpt6DF workstn infds(WSDS);                          
+                                                             
+// Display file information data structure                   
+                                                             
+Dcl-Ds wsds;                                                 
+  key    char(1) pos(369);   // Identifies the key pressed   
+  pagrrn bindec(2) pos(378); // Identifies subfile page rrn  
+End-Ds;                                                      
+Dcl-S SFLRN zoned(4:0);                                      
+                                                             
+// dcl-ds PgmDs psds qualified ;                             
+//  PgmName *proc ;                                          
+// end-ds ;
+                                                                      
+// Named hexadecimal constants for function keys                      
+                                                                      
+Dcl-C @F03 const(X'33');                                              
+                                                                      
+// Defines standard constants                                         
+                                                                      
+Dcl-C @False const('0');                                              
+Dcl-C @True  const('1');                                              
+                                                                      
+// Defines program constants                                          
+                                                                      
+Dcl-C @Blank const(' ');                                              
+Dcl-C @Null  const(0);                                                
+Dcl-C @All   const('*ALL');                                           
+Dcl-C @Diag  const('*DIAG');                                          
+Dcl-C @Escap const('*ESCAPE');                                        
+Dcl-C @CuStk const(0);                                                
+Dcl-C @PrStk const(1);                                                
+Dcl-C @Cuque const('*'); 
+                                                          
+// Program status data structure                          
+                                                          
+Dcl-Ds PgmDs psds;                                        
+  @Pgm         char(10)     pos(1);                       
+  @Stat        zoned(5:0)   pos(11);                      
+  @Parms       zoned(3:0)   pos(37);                      
+  @MsgId       char(7)      pos(40);                      
+  @Data        char(79)     pos(91);                      
+  @JobNa       char(10)     pos(244);                     
+  @UsrNa       char(10)     pos(254);                     
+  @JobNo       char(6)      pos(264);                     
+  @Srcf        char(10)     pos(304);                     
+  @Srcl        char(10)     pos(314);                     
+  @Srcm        char(10)     pos(324);                     
+End-Ds;                                                   
+                                                          
+// Customer externally defined DS                         
+                                                          
+Dcl-Ds HremailDs ExtName('HREMAIL');
+End-Ds;                                                      
+                                                             
+// Prototypes                                                
+                                                             
+Dcl-Pr JRRPT6@;                                              
+    Parm1 char(10);                                          
+    Parm2 char(1);                                           
+End-Pr;                                                      
+                                                             
+Dcl-Pr qmhrmvpm ExtPgm('QMHRMVPM');                          
+  PMsgQ         char(10)              const;                 
+  PMsgStk       bindec(8)             const;                 
+  PMsgKey       char(4)               const;                 
+  PMsgRmv       char(10)              const;                 
+  PMsgErr       char(8)               const;                 
+End-Pr;                                                      
+                                                             
+Dcl-Pr EdtPgm ExtPgm('JRRPT6E@');                            
+   *N           Like(HremailDs);                             
+   *N           Like(RtnInd);
+   *N           Like(@Err);                          
+   *N           Like(ErMsg);                         
+   *N           Like(PMode);                         
+End-Pr;                                              
+                                                     
+Dcl-Pr UpdPgm ExtPgm('JRRPT6U@');                    
+   *N           Like(HremailDs);                     
+   *N           Like(PMode);                         
+End-Pr;                                              
+                                                     
+// Interfaces                                        
+                                                     
+Dcl-Pi JRRPT6@;                                      
+    UsrId_  char(10);                                
+    PMode   char(1);                                 
+End-Pi;                                              
+                                                     
+                                                     
+// Stand alone fields                                
+   Dcl-S PgmQ   Like(@Pgm);
+   Dcl-S RtnInd char(11);                                    
+   Dcl-S @Err   char(1);                                     
+   Dcl-S @Exit  char(1);                                     
+   Dcl-S ErrRn  zoned(4:0);                                  
+ // Message-related fields                                   
+   Dcl-S   MsgQ         char(10);                            
+   Dcl-S   MsgStk       bindec(8);                           
+   Dcl-S   MsgKey       char(4);                             
+   Dcl-S   MsgRmv       char(10);                            
+   Dcl-S   MsgErr       char(8)   inz(X'0000000000000000');  
+   Dcl-S   MsgCnt       zoned(10:0) inz(0);                  
+                                                             
+// Program mainline                                          
+                                                             
+ExSr @Load;                                                  
+                                                             
+// Perform until exit requested using F03 or F12             
+                                                             
+                                                             
+Dow (@Exit = @False);
+   Select;                                   
+      When PMode = 'C';                      
+         ExFmt EntPnl;                       
+      When PMode = 'A';                      
+         ExFmt EntPnl2;                      
+      When PMode = 'D';                      
+         ExFmt EntPnl3;                      
+   EndSl;                                    
+                                             
+// Process response                          
+                                             
+   Select;                                   
+      When (Key = @F03);                     
+         ExSr @F03Sr;                        
+      Other;                                 
+         ExSr @EntKy;                        
+   EndSl;                                    
+                                             
+EndDo;                                       
+  
+// End of program, you can modify to leave *INLR = *OFF           
+// and program will still work properly when called again         
+                                                                  
+*InLr = '1';                                                      
+Return;                                                           
+                                                                  
+// Subroutines                                                    
+                                                                  
+// *InzSr                                                         
+                                                                  
+BegSr *InzSr;                                                     
+                                                                  
+                                                                  
+   // Create program exit flag and set value to @FALSE            
+                                                                  
+   @Exit = @False;                                                
+   PgmQ  = @Pgm;                                                  
+   @Err  = @False;                                                
+   ErrRn  = 0;                                                    
+ 
+//   prgNam = %trimr(PgmDs.PgmName);                                
+     prgNam = @Pgm;                                                 
+                                                                    
+EndSr;                                                              
+                                                                    
+// @Load                                                            
+// Load the Screen                                                  
+                                                                    
+BegSr @Load;                                                        
+                                                                    
+// Read a record                                                    
+                                                                    
+   Chain UsrId_ Hremail;                                            
+                                                                    
+      If %found(Hremail);                                           
+                                                                    
+         *In99 = '0';                                               
+                                                                    
+      Else;                                                         
+ 
+         *In99 = '1';                                            
+                                                                 
+      EndIf;                                                     
+                                                                 
+EndSr;                                                           
+                                                                 
+// @EntKy                                                        
+// Process enter key after subfile display                       
+                                                                 
+BegSr @EntKy;                                                    
+                                                                 
+   // Remove previous error messages, reset error RRN            
+                                                                 
+   ExSr @RMVMS;                                                  
+   Reset ErrRn;                                                  
+                                                                 
+   // Call the external edit program for each change             
+                                                                 
+   ExSr @Edit;
+   
+   // No error, then update customer record                                                                                  
+
+   If (@Err = @False);                                         
+      ExSr @UpDt;                                              
+      ExSr @F03SR;                                             
+   EndIf;                                                      
+EndSr;                                                         
+                                                               
+// @F03SR                                                      
+                                                               
+BegSr @F03SR;                                                  
+                                                               
+// set exit program flag                                       
+                                                               
+@Exit = @True;                                                 
+                                                               
+EndSr;                                                         
+                                                               
+// @RMVMS                                                      
+  
+BegSr @RMVMS;                                                     
+                                                                  
+// Remove program messages                                        
+                                                                  
+Reset  MsgQ;                                                      
+Reset  MsgStk;                                                    
+Reset  MsgKey;                                                    
+Reset  MsgRmv;                                                    
+                                                                  
+MsgQ = @Cuque;                                                    
+MsgStk = @CuStk;                                                  
+MsgKey = *Blanks;                                                 
+MsgRmv = @All;                                                    
+                                                                  
+qmhrmvpm (MsgQ:MsgStk:MsgKey:MsgRmv:MsgErr);                      
+                                                                  
+MsgCnt = 0;                                                       
+ErMsg = *Blanks;                                                  
+
+EndSr;                                              
+                                                    
+// @Edit                                            
+                                                    
+BegSr @Edit;                                        
+                                                    
+// Call external program to edit record             
+                                                    
+Reset @Err;                                         
+                                                    
+EdtPgm(HremailDs:RtnInd:@Err:ErMsg:PMode);          
+                                                    
+                                                    
+%SubArr(*IN : 71 : 11) = RtnInd;                    
+                                                    
+EndSr;                                              
+                                                    
+// @Updt                                            
+                                                    
+BegSr @Updt;  
+                                                       
+// Call external program to update record              
+                                                       
+UpdPgm(HremailDs:PMode);                               
+                                                       
+EndSr;                                                                                                                                                           

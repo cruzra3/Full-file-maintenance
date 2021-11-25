@@ -1,0 +1,28 @@
+0001.00 PGM                                                                    
+0002.00              DCLF       FILE(*LIBL/ACC_DSPF)                           
+0002.01              DCLF       FILE(AMIT/ACCOUNT) OPNID(ID1)                  
+0002.02              DCL        VAR(&COUNT) TYPE(*INT) VALUE(0)   
+                     DCL        VAR(&ACCOUNT) TYPE(*INT) VALUE(0)             
+0002.03              DCL        VAR(&CHAR) TYPE(*CHAR) VALUE(' ')              
+0003.00 READ:                                                                  
+0003.01              IF         COND(&IN03 *EQ '0') THEN(DO)                   
+0003.10              RCVF       OPNID(ID1)                                     
+0003.11              MONMSG     MSGID(CPF0864) EXEC(GOTO CMDLBL(END1))         
+0003.12              CHGVAR     VAR(&S_ORG) VALUE(&ID1_ORG)                    
+0003.13              CHGVAR     VAR(&S_ACC) VALUE(&ID1_ACC)                    
+0003.14              CHGVAR     VAR(&S_CCY) VALUE(&ID1_CCY)                    
+0003.15              CHGVAR     VAR(&S_PARTY) VALUE(&ID1_PARTY)                
+0003.16              CHGVAR     VAR(&COUNT) VALUE(&COUNT+1)                     
+0003.17              CHGVAR     VAR(&CHAR) VALUE(&COUNT)                       
+0003.18              CHGVAR     VAR(&S_MSG) VALUE('THIS IS RECORD NO' +    
+0003.19                         *CAT ' ' *CAT &CHAR)                           
+0003.20              SNDF       RCDFMT(HEADER)                                 
+0003.21              SNDF       RCDFMT(FOOTER)                                 
+0003.22              RCVF       RCDFMT(HEADER)                                 
+0003.23              GOTO       READ                                           
+0005.10              ENDDO                                                     
+0007.00 END1:                                                                  
+0007.01              CLOF      OPNID(ID1)                                      
+0007.02              MONMSG     MSGID(CPF4520)                                 
+0007.03              /** BY USING THIS THE MSG CPF4520 WON'T APPEAR **/        
+0009.00 ENDPGM                                 

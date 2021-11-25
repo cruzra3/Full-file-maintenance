@@ -1,0 +1,179 @@
+**free                                               
+ctl-opt dftActGrp(*no);                              
+                                                     
+//                                                   
+//*** file declarations                              
+//                                                   
+dcl-f hremail usage(*input) keyed;                   
+                                                     
+//                                                   
+//*** indicators, fields data structures etc.        
+//                                                   
+dcl-s indp pointer inz(%addr(*in));                  
+                                                     
+dcl-ds ind based(indp);                              
+  errUsrId      char(1)   pos(71);                   
+  errUsrName    char(1)   pos(72);                   
+  errGrpId      char(1)   pos(73);                        
+  errGrpDes     char(1)   pos(74);                        
+  errEmail      char(1)   pos(75);                        
+  errRccEmail   char(1)   pos(76);                        
+  errAll        char(11)  pos(71);                        
+end-ds;                                                   
+                                                          
+dcl-ds HremailDs ExtName('HREMAIL');                      
+end-ds;                                                   
+                                                          
+dcl-ds saveDS likeds(HremailDs);                          
+                                                          
+dcl-s msg       char(65)  dim(9) ctData perRcd(1);        
+dcl-c @false const('0');                                  
+dcl-c @true  const('1');                                  
+//                                                        
+//*** prototypes and interfaces.   
+//                                                  
+                                                    
+Dcl-Pr JRRPT6@;                                     
+    hremailDsPr  like(hremailDs);                   
+    rtnIndPr     char(11);                          
+    @errPr       char(1);                           
+    erMsgPr      char(77);                          
+    pModePr      char(1);                           
+End-Pr;                                             
+                                                    
+Dcl-Pi JRRPT6E@;                                    
+    hremailDsPi  like(hremailDs);                   
+    rtnInd       char(11);                          
+    @err         char(1);                           
+    erMsg        char(77);                          
+    pMode        char(1);                           
+End-Pi;
+                                              
+//                                            
+//*** calculations                            
+//                                            
+   reset @err;                                
+   hremailDs = hremailDsPi;                   
+   saveDs = hremailDs;                        
+                                              
+   chain usrId hremail;                       
+   if (%found(hremail));                      
+      *in21 = *off;                           
+   else;                                      
+      *in21 = *on;                            
+   endIf;                                     
+                                              
+//                                            
+//*** DO starts here 
+//                                                                  
+                                                                    
+dow ( 1 = 1 );                                                      
+                                                                    
+//                                                                  
+//*** record not found                                              
+//                                                                  
+   if ((*in21 = *on) and (pMode <> 'A'));                           
+      %subst(msg(5) : 56 : 10) = usrId;                             
+      @err = @true;                                                 
+      *in71 = *on;                                                  
+      erMsg = msg(5);                                               
+      leave;                                                        
+   endIf;                                                           
+//                                                                  
+//*** record found                                                  
+//  
+   if (*in21 = *off);                        
+      hremailDs = saveDs;                    
+   endIf;                                    
+//                                           
+//*** usrid                                  
+//                                           
+   if (usrId = *blanks);                     
+      %subst(msg(1):56:10) = usrId;          
+      @err = @true;                          
+      *in71 = *on;                           
+      erMsg = msg(1);                        
+      leave;                                 
+   endIf;                                    
+//                                           
+//*** user name                              
+//                                           
+   if (usrNam = *blanks);
+      %subst(msg(2):56:10) = usrId;                   
+      @err = @true;                                   
+      *in72 = *on;                                    
+      erMsg = msg(2);                                 
+      leave;                                          
+   endIf;                                             
+//                                                    
+//*** groupId                                         
+//                                                    
+   select;                                            
+      when (groupId = 'BE');                          
+      // BE is valid                                  
+      when (groupId = 'CO');                          
+      // CO is valid                                  
+      when (groupId = 'JA');                          
+      // JA is valid                                  
+      when (groupId = 'TA');  
+      // TA is valid                                   
+      other;                                           
+      // error invalid group id                        
+            %subst(msg(3):56:10) = usrId;              
+            @err = @true;                              
+            *in73 = *on;                               
+            erMsg = msg(3);                            
+            leave;                                     
+   endsl;                                              
+//                                                     
+//*** group description                                
+//                                                     
+   if (grpDes = *blanks);                              
+         %subst(msg(4):56:10) = usrId;                 
+         @err = @true;                                 
+         *in74 = *on;                                  
+         erMsg = msg(4);
+         leave;                            
+   endIf;                                  
+//                                         
+//*** receive email 'Y' or ' '             
+//                                         
+   select;                                 
+      when (rcvemail = 'Y');               
+      // 'Y' is valid;                     
+      when (rcvemail = ' ');               
+      // ' ' is valid                      
+      other;                               
+         %subst(msg(6):56:10) = usrId;     
+         @err = @true;                     
+         *in76 = *on;                      
+         erMsg = msg(6);                   
+         leave;                            
+   endsl; 
+//                                        
+//*** DO ends here                        
+//                                        
+leave; // do executes only once           
+endDo;                                    
+                                          
+   if (@err = @true);                     
+      *in79 = *on;                        
+   endIf;                                 
+                                          
+   rtnInd = *blanks;                      
+   rtnInd = errAll;                       
+   *inLr = *on;                           
+   return;                                
+                                          
+   begSr *inzSr;                          
+      %subArr(*in : 1 : 99) = *off; 
+      @err = @false;                                                
+   endSr;                                                           
+                                                                    
+** msg error messages                                               
+invalid user id                                                  01 
+invalid user name                                                02 
+invalid group id must be (BE,CO,JA,TA)                           03 
+invalid group description                                        04 
+record not found                                                 05 
+receive mail must be a 'Y' or a blank                            06 	  

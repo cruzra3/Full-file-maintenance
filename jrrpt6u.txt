@@ -1,0 +1,46 @@
+     H
+      *-------------------------------------------------------------------------
+      * PROGRAM NAME  : JRRPT6U
+      * DESCRIPTION   : UPDATE HREMAIL records
+      * CREATION DATE : 04/03/2008
+      * PROGRAMMER    : Rafael Angel Cruz
+      * PURPOSE       : File editing
+      *
+      *-------------------------------------------------------------------------
+      * Maintenance Log
+      *--------------------------------------------------------------------
+      *----------------------------------------------------------------
+      * Files
+      *----------------------------------------------------------------
+     FHremail   UF A E           K DISK
+     D Hremailds     E DS                  EXTNAME(Hremail)
+     D SAVEDS          DS           250
+
+->   C     *ENTRY        PLIST
+->   C                   PARM                    Hremailds
+->   C                   PARM                    PMODE             1
+
+     C                   MOVEL     Hremailds     SAVEDS
+     C     usrid         CHAIN     Hremail                            90
+
+      * Change mode
+     C                   SELECT
+     C     PMODE         WHENEQ    'C'
+     C     *IN90         ANDEQ     *OFF
+     C                   MOVEL     SAVEDS        Hremailds
+     C                   UPDATE    HREMAF1
+
+      * Add mode
+     C     PMODE         WHENEQ    'A'
+     C     *IN90         ANDEQ     *ON
+     C                   MOVEL     SAVEDS        Hremailds
+     C                   WRITE     HREMAF1
+
+      * Delete mode
+     C     PMODE         WHENEQ    'D'
+     C     *IN90         ANDEQ     *OFF
+     C     USRID         DELETE    HREMAF1
+     C                   ENDSL
+
+     C                   MOVEL     *ON           *INLR
+     C                   RETURN

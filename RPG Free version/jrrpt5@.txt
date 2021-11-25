@@ -1,0 +1,351 @@
+
+**free                                                            
+Ctl-Opt DftActGrp(*no);                                           
+                                                                  
+// File Declarations                                              
+                                                                  
+Dcl-F hremail usage(*input) keyed;                                
+Dcl-F Jrrpt5DF workstn infds(WSDS) sfile(SFL:SFLRN);              
+                                                                  
+// Display file information data structure                        
+                                                                  
+Dcl-Ds wsds;                                                      
+  key    char(1) pos(369);   // Identifies the key pressed        
+  pagrrn bindec(2) pos(378); // Identifies subfile page rrn       
+End-Ds;                                                           
+Dcl-S SFLRN zoned(4:0);                                           
+                                                                  
+dcl-ds PgmDs psds qualified ;                                     
+  PgmName *proc ;                                                 
+end-ds ;
+                                                               
+                                                               
+                                                               
+// Named hexadecimal constants for function keys               
+                                                               
+Dcl-C @F01 const(X'31');                                       
+Dcl-C @F02 const(X'32');                                       
+Dcl-C @F03 const(X'33');                                       
+Dcl-C @F04 const(X'34');                                       
+Dcl-C @F05 const(X'35');                                       
+Dcl-C @F06 const(X'36');                                       
+Dcl-C @F07 const(X'37');                                       
+Dcl-C @F08 const(X'38');                                       
+Dcl-C @F09 const(X'39');                                       
+Dcl-C @F10 const(X'3A');                                       
+Dcl-C @F11 const(X'3B');                                       
+Dcl-C @F12 const(X'3C');                                       
+Dcl-C @F13 const(X'B1');                                       
+Dcl-C @F14 const(X'B2');                                       
+Dcl-C @F15 const(X'B3'); 
+Dcl-C @F16 const(X'B4');  
+Dcl-C @F17 const(X'B5');  
+Dcl-C @F18 const(X'B6');  
+Dcl-C @F19 const(X'B7');  
+Dcl-C @F20 const(X'B8');  
+Dcl-C @F21 const(X'B9');  
+Dcl-C @F22 const(X'BA');  
+Dcl-C @F23 const(X'BB');  
+Dcl-C @F24 const(X'BC');  
+Dcl-C @Clear const(X'BD');
+Dcl-C @Enter const(X'F1');
+Dcl-C @Help  const(X'F3');
+Dcl-C @PagUp const(X'F4');
+Dcl-C @PagDn const(X'F5');
+Dcl-C @Print const(X'F6');
+                          
+// Defines standard consta
+                          
+Dcl-C @False const('0');  
+Dcl-C @True  const('1');
+                                                   
+// Declare stand alone fields                      
+                                                   
+Dcl-S PMode    char(1);                            
+Dcl-S EndKey Like(UsrId);                          
+Dcl-S @Exit    char(1);                            
+Dcl-S Endrn    zoned(4:0);                         
+Dcl-S Sflps    zoned(4:0);                         
+Dcl-S StartLn  zoned(4:0) inz(1);                  
+Dcl-S MaxLn    zoned(4:0) inz(15);                 
+                                                   
+// Declare prototypes                              
+                                                   
+Dcl-Pr Jrrpt6@ ExtPgm('JRRPT6@');                  
+    Parm1 char(10);                                
+    Parm2 char(1);                                 
+End-Pr;                                            
+                                                   
+// Reset variables and clear subfile               
+// in case program called again after *INLR = *OFF 
+// ensures that program starts again properly      
+                                                   
+Reset @Exit;                                       
+Exsr @Reset;                                       
+                                                   
+// Program mainline                                
+                                                   
+Exsr @Load;                                        
+                                                   
+// Perform until exit requested using F03 or F12   
+                                                   
+Dow (@Exit = @False);                              
+   write SflHdr;                                   
+   write SflCmd;                                   
+   ExFmt SflCtl;                                   
+                                                   
+   SflPs = PagRrn;                                 
+                                                   
+   Select;                                         
+      When Key = @F03;
+         Exsr @F03SR;                                                  
+      When Key = @F05;                                                 
+         Exsr @F05SR;                                                  
+      When Key = @F06;                                                 
+         Exsr @F06SR;                                                  
+      When Key = @F12;                                                 
+         Exsr @F12SR;                                                  
+      When Key = @PagDn;                                               
+         Exsr @Pgdn;                                                   
+      Other;                                                           
+         ExSr @EntKy;                                                  
+   EndSl;                                                              
+EndDo;                                                                 
+                                                                       
+// End of program, you can modify to leave *INLR = *OFF                
+// and program will still work properly when called again              
+                                                                       
+*InLr = '1';                                                           
+Return; 
+                                                            
+// Subroutine Section of Program                            
+                                                            
+                                                            
+// *InzSr - Initial one time subroutine                     
+                                                            
+BegSr *InzSr;                                               
+                                                            
+   // Create program exit flag and set value to @FALSE      
+                                                            
+   @Exit = @False;                                          
+                                                            
+   // Miscellaneous subfile program variables               
+                                                            
+   SflRn = 0;                                               
+   EndRn = 0;                                               
+   SflPs = 1;                                               
+                                                            
+   prgNam = %trimr(PgmDs.PgmName);                          
+                                                            
+EndSr;                                                                
+                                                                      
+// @Load                                                              
+                                                                      
+BegSr @Load;                                                          
+   For StartLn = 1 to MaxLn;                                          
+      Read Hremail;                                                   
+                                                                      
+   // If no records were added to subfile, set error indicators.      
+                                                                      
+      If (%eof);                                                      
+         *In99 = '1';                                                 
+         Leave;                                                       
+      Else;                                                           
+                                                                      
+   // Else, set indicators to display subfile.                        
+                                                                      
+         *In99 = '0';                                                 
+         SflRn += 1;                                                  
+         Write Sfl; 
+     EndIf;                                                              
+  EndFor;                                                                
+                                                                         
+  ExSr @EndKy;                                                           
+                                                                         
+  // If not EOF, read one more record to make sure.                      
+                                                                         
+  If (*In99 = '0');                                                      
+     Read Hremail;                                                       
+  EndIf;                                                                 
+                                                                         
+  // If no records were added to subfile, set error indicators.          
+                                                                         
+  If (SflRn = 0);                                                        
+     *In42 = '0';                                                        
+  Else;                                                                  
+                                                                         
+  // Else, set indicators to display subfile.                            
+                                                                         
+     *In42 = '1';                                                        		 
+															
+                                                           
+   // Set subfile position to page just added.             
+                                                           
+      SflPs = SflRn;                                       
+   EndIf;                                                  
+EndSr;                                                     
+                                                           
+// @EndKy                                                  
+                                                           
+BegSr @EndKy;                                              
+                                                           
+   // Update end keys and variables for file/subfile       
+                                                           
+   EndKey = UsrId;                                         
+   EndRn  = SflRn;                                         
+                                                           
+EndSr;                                                     
+                                                           
+// @Reset                                                  
+    
+BegSr @Reset;                 
+                              
+   // Clear/Reset Subfile     
+                              
+   *In40 = '1';               
+   Write SflCtl;              
+   *In40 = '0';               
+   *In42 = '0';               
+   Reset SflRn;               
+   Reset EndRn;               
+   Reset SflPs;               
+EndSr;                        
+                              
+// @Repos                     
+                              
+BegSr @Repos;                 
+                              
+// Reposition file            
+                              
+   ExSr @Reset;
+
+   Setll UsrId Hremail;                              
+   ExSr @Load;                                       
+                                                     
+EndSr;                                               
+                                                     
+                                                     
+// @PgDn                                             
+                                                     
+BegSr @PgDn;                                         
+                                                     
+// Subfile page down                                 
+                                                     
+If (*In99 = '0');                                    
+                                                     
+// Continue with record after the last one read.     
+                                                     
+   SetGt EndKey Hremail;                             
+   SflRn = EndRn;                                    
+   ExSr @Load;                                       
+// Page down beyond end of subfile                   
+                                                     
+Else;                                                
+                                                     
+   *In60 = '1';                                      
+                                                     
+EndIf;                                               
+EndSr;                                               
+                                                     
+// @EntKy                                            
+                                                     
+BegSr @EntKy;                                        
+                                                     
+   // User request position to new name              
+                                                     
+   If (Search <> ' ');                               
+      UsrId = Search;                                
+      ExSr @Repos;                                   
+                                                     
+   // or process subfile changed records  
+                                                                  
+   Else;                                                          
+      ExSr @SflRd;                                                
+   EndIf;                                                         
+EndSr;                                                            
+                                                                  
+// @SflRd                                                         
+                                                                  
+BegSr @SflRd;                                                     
+                                                                  
+   // Read changed records in subfile to check for selection      
+                                                                  
+   Dow (1 = 1);                                                   
+                                                                  
+   // If user made selection,                                     
+   // initialize output variable with user selection              
+   // and force end of program.                                   
+                                                                  
+      Readc Sfl;                                                  
+      If (%eof) ;
+        *In98 = '1';                     
+        Leave ;                          
+     Else;                               
+        *In98 = '0';                     
+        Select;                          
+        When (Selio = 2);                
+           Pmode = 'C';                  
+           Jrrpt6@(UsrId:PMode);         
+           Leave;                        
+        When (Selio = 4);                
+           Pmode = 'D';                  
+           Jrrpt6@(UsrId:PMode);         
+           Leave;                        
+           EndSl;                        
+     EndIf ;                             
+  EndDo;                                 
+                                         
+  // REFRESH SCREEN                      
+                                         
+  ExSr @F05SR;                           
+EndSr;                                       
+                                             
+// @F03SR                                    
+                                             
+BegSr @F03SR;                                
+                                             
+   // User reset exit program flag           
+                                             
+   @Exit = @True;                            
+                                             
+EndSr;                                       
+                                             
+// @F05SR                                    
+                                             
+BegSr @F05SR;                                
+                                             
+   // Clear subfile                          
+                                             
+   ExSr @Reset;
+   
+   // Reposition file by search value        
+                                             
+   Setll *Loval Hremail;                     
+   ExSr @Load;                               
+                                             
+EndSr;                                       
+                                             
+// @F06SR                                    
+                                             
+BegSr @F06SR;                                
+                                             
+   // Add a record                           
+                                             
+   Pmode = 'A';                              
+   Clear UsrId;                              
+   Jrrpt6@(UsrID:Pmode);                     
+   ExSr @F05SR;                              
+                                             
+EndSr;                                       
+
+// @F12SR                       
+                                
+BegSr @F12SR;                   
+                                
+   // set exit program flag     
+                                
+   @Exit = @True;               
+                                
+EndSr;                                                                                                                      
+	  
+                                                                                                                         

@@ -1,0 +1,347 @@
+     H
+      *----------------------------------------------------------------
+      * PROGRAM NAME  : JRRPT5
+      * DESCRIPTION   : Maintain HREMAIL file
+      * CREATION DATE : 04/02/2008
+      * PROGRAMMER    : Rafael Angel Cruz
+      * PURPOSE       : File maintenance
+      *
+      *----------------------------------------------------------------
+      * Maintenance Log
+      *----------------------------------------------------------------
+      *----------------------------------------------------------------
+      * Files
+      *----------------------------------------------------------------
+      *
+     FHremail   IF   E           K DISK
+->   FJrrpt5DF  CF   E             WORKSTN INFDS(WSDS)
+     F                                     SFILE(SFL:SFLRN)
+      *
+      * Standard include for all interactive programs
+      *   named hexadecimal constants for function keys
+     D @F01            C                   CONST(X'31')
+     D @F02            C                   CONST(X'32')
+     D @F03            C                   CONST(X'33')
+     D @F04            C                   CONST(X'34')
+     D @F05            C                   CONST(X'35')
+     D @F06            C                   CONST(X'36')
+     D @F07            C                   CONST(X'37')
+     D @F08            C                   CONST(X'38')
+     D @F09            C                   CONST(X'39')
+     D @F10            C                   CONST(X'3A')
+     D @F11            C                   CONST(X'3B')
+     D @F12            C                   CONST(X'3C')
+     D @F13            C                   CONST(X'B1')
+     D @F14            C                   CONST(X'B2')
+     D @F15            C                   CONST(X'B3')
+     D @F16            C                   CONST(X'B4')
+     D @F17            C                   CONST(X'B5')
+     D @F18            C                   CONST(X'B6')
+     D @F19            C                   CONST(X'B7')
+     D @F20            C                   CONST(X'B8')
+     D @F21            C                   CONST(X'B9')
+     D @F22            C                   CONST(X'BA')
+     D @F23            C                   CONST(X'BB')
+     D @F24            C                   CONST(X'BC')
+     D @CLEAR          C                   CONST(X'BD')
+     D @ENTER          C                   CONST(X'F1')
+     D @HELP           C                   CONST(X'F3')
+     D @PAGUP          C                   CONST(X'F4')
+     D @PAGDN          C                   CONST(X'F5')
+     D @PRINT          C                   CONST(X'F6')
+      *
+      * Standard include for all interactive programs
+      *   Defines standard constants
+     D @FALSE          C                   CONST('0')
+     D @TRUE           C                   CONST('1')
+      *
+      * Standard include for all interactive programs
+      *   display file information data structure
+     D WSDS            DS
+      *               Identifies the key pressed
+     D  KEY                  369    369
+      *               Identifies the subfile page rrn
+     D  PAGRRN               378    379B 0
+->    *
+      *==============================================================*
+      * Reset variables and clear subfile                            *
+      *   in case program called again after *INLR = *OFF            *
+      *   ensures that program starts again properly                 *
+      *==============================================================*
+      *
+     C                   RESET                   @EXIT
+     C                   EXSR      @RESET
+      *
+      *==============================================================*
+      * Program mainline                                             *
+      *==============================================================*
+      *
+     C                   EXSR      @LOAD
+      *
+      * Perform until exit requested using F03 or F12
+     C     @EXIT         DOUEQ     @TRUE
+      *
+     C                   WRITE     SFLHDR
+     C                   WRITE     SFLCMD
+     C                   EXFMT     SFLCTL
+      *
+     C                   Z-ADD     PAGRRN        SFLPS
+      *
+      * Process response
+     C     KEY           CASEQ     @F03          @F03SR
+     C     KEY           CASEQ     @F05          @F05SR
+     C     KEY           CASEQ     @F06          @F06SR
+     C     KEY           CASEQ     @F12          @F12SR
+     C     KEY           CASEQ     @PAGDN        @PGDN
+     C                   CAS                     @ENTKY
+     C                   ENDCS
+      *
+     C                   ENDDO
+      *
+      * End of program, you can modify to leave *INLR = *OFF
+      *   and program will still work properly when called again
+      *
+     C                   MOVE      *ON           *INLR
+     C                   RETURN
+      *
+      *==============================================================*
+      * Subroutine Section of Program                                *
+      *==============================================================*
+      *
+      *==============================================================*
+      * Initialization Subroutine                                    *
+      *==============================================================*
+      *
+     C     *INZSR        BEGSR
+      *
+     C     *LIKE         DEFINE    USRID         ENDKEY
+      *
+      * Create program exit flag and set value to @FALSE
+     C                   MOVE      @FALSE        @EXIT             1
+      *
+      * Miscellaneous subfile program variables
+     C                   Z-ADD     0             SFLRN             4 0
+     C                   Z-ADD     0             ENDRN             4 0
+     C                   Z-ADD     1             SFLPS
+      *
+      * Complete file key
+     C*    FILKEY        KLIST
+     C*                  KFLD                    CNAME
+     C*                  KFLD                    CCUST
+      *
+      * End key for repositioning subfile
+     C*    ENDKEY        KLIST
+     C*                  KFLD                    ENDID
+      *
+     C                   ENDSR
+      *
+      *==============================================================*
+      * Load subfile                                                 *
+      *==============================================================*
+      *
+     C     @LOAD         BEGSR
+      *
+      * Read a page of records or until EOF.
+     C                   DO        15
+     C                   READ      HREMAIL                                99
+      *
+     C     *IN99         IFEQ      *ON
+     C                   LEAVE
+     C                   ELSE
+      * Write subfile record.
+     C                   ADD       1             SFLRN
+     C                   WRITE     SFL
+     C                   ENDIF
+      *
+     C                   ENDDO
+      *
+      * Set endkey values
+     C                   EXSR      @ENDKY
+      *
+      * If not EOF, read one more record to make sure.
+     C     *IN99         IFEQ      *OFF
+     C                   READ      HREMAIL                                99
+     C                   ENDIF
+      *
+      * If no records were added to subfile, set error indicators.
+     C     SFLRN         IFEQ      *ZEROS
+     C                   MOVE      *OFF          *IN42
+     C                   ELSE
+      * Else, set indicators to display subfile.
+     C                   MOVE      *ON           *IN42
+      * Set subfile position to page just added.
+     C                   Z-ADD     SFLRN         SFLPS
+     C                   ENDIF
+      *
+     C                   ENDSR
+      *
+      *==============================================================*
+      * Update end keys and variables for file/subfile               *
+      *==============================================================*
+      *
+     C     @ENDKY        BEGSR
+      *
+     C                   MOVE      USRID         ENDKEY
+     C                   Z-ADD     SFLRN         ENDRN
+      *
+     C                   ENDSR
+      *
+      *==============================================================*
+      * Clear/Reset Subfile                                          *
+      *==============================================================*
+      *
+     C     @RESET        BEGSR
+      *
+      * Clear subfile and reset subfile display indicator.
+     C                   MOVE      *ON           *IN40
+     C                   WRITE     SFLCTL
+     C                   MOVE      *OFF          *IN40
+     C                   MOVE      *OFF          *IN42
+      *
+      * Reset subfile record number and subfile position fields.
+     C                   RESET                   SFLRN
+     C                   RESET                   ENDRN
+     C                   RESET                   SFLPS
+      *
+     C                   ENDSR
+      *
+      *==============================================================*
+      * Reposition file                                              *
+      *==============================================================*
+      *
+     C     @REPOS        BEGSR
+      *
+      * Clear subfile
+     C                   EXSR      @RESET
+      *
+      * Reposition file by search value
+     C     USRID         SETLL     HREMAIL
+     C                   EXSR      @LOAD
+      *
+     C                   ENDSR
+      *
+      *==============================================================*
+      * Subfile page down                                            *
+      *==============================================================*
+      *
+     C     @PGDN         BEGSR
+      *
+     C     *IN99         IFEQ      *OFF
+      * Continue with record after the last one read.
+     C     ENDKEY        SETGT     HREMAIL
+     C                   Z-ADD     ENDRN         SFLRN
+     C                   EXSR      @LOAD
+      * Page down beyond end of subfile
+     C                   ELSE
+     C                   MOVE      *ON           *IN60
+     C                   ENDIF
+      *
+     C                   ENDSR
+      *
+      *==============================================================*
+      * Process enter key after subfile display                      *
+      *==============================================================*
+      *
+     C     @ENTKY        BEGSR
+      *
+      * User request position to new name
+     C     SEARCH        IFNE      *BLANKS
+     C                   MOVEL     SEARCH        USRID
+     C                   EXSR      @REPOS
+->    * or process subfile changed records
+->   C                   ELSE
+->   C                   EXSR      @SFLRD
+     C                   ENDIF
+      *
+     C                   ENDSR
+      *
+->    *==============================================================*
+->    * Read changed records in subfile to check for selection       *
+->    *==============================================================*
+->    *
+->   C     @SFLRD        BEGSR
+->    *
+->    * Did user make a selection?
+->   C                   READC     SFL                                    98
+->    *
+->   C     *IN98         DOWEQ     *OFF
+->    *
+->    * If user made selection,
+->    *   initialize output variable with user selection
+->    *   and force end of program.
+     C                   SELECT
+
+->   C     SELIO         WHENEQ    2
+     C                   MOVE      'C'           PMODE
+->   C                   CALL      'JRRPT6'
+     C                   PARM                    USRID
+     C                   PARM                    PMODE             1
+->   C                   LEAVE
+
+->   C     SELIO         WHENEQ    4
+     C                   MOVE      'D'           PMODE
+->   C                   CALL      'JRRPT6'
+     C                   PARM                    USRID
+     C                   PARM                    PMODE             1
+->   C                   LEAVE
+
+->   C                   ENDSL
+->    *
+->   C                   READC     SFL                                    98
+->   C                   ENDDO
+->    * REFRESH SCREEN
+     C                   EXSR      @F05SR
+->    *
+->   C                   ENDSR
+->    *
+      *==============================================================*
+      * F03 key subroutine                                           *
+      *==============================================================*
+      *
+     C     @F03SR        BEGSR
+      *
+      * set exit program flag
+     C                   MOVE      @TRUE         @EXIT
+      *
+     C                   ENDSR
+      *
+      *==============================================================*
+      * Refresh subfile                                              *
+      *==============================================================*
+      *
+     C     @F05SR        BEGSR
+      *
+      * 
+     C                   EXSR      @RESET
+      *
+      * Reposition file by search value
+     C     *LOVAL        SETLL     HREMAIL
+     C                   EXSR      @LOAD
+      *
+     C                   ENDSR
+      *
+      *==============================================================*
+      * Add a record
+      *==============================================================*
+      *
+     C     @F06SR        BEGSR
+      *
+     C                   MOVE      'A'           PMODE
+     C                   CLEAR                   USRID
+->   C                   CALL      'JRRPT6'
+     C                   PARM                    USRID
+     C                   PARM                    PMODE             1
+     C                   EXSR      @F05SR
+      *
+     C                   ENDSR
+      *==============================================================*
+      * F12 key subroutine                                           *
+      *==============================================================*
+      *
+     C     @F12SR        BEGSR
+      *
+      * set exit program flag
+     C                   MOVE      @TRUE         @EXIT
+      *
+     C                   ENDSR
+      *

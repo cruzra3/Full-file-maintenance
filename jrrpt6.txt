@@ -1,0 +1,235 @@
+     H
+      *-------------------------------------------------------------------------
+      * PROGRAM NAME  : JRRPT6
+      * DESCRIPTION   : Maintain HREMAIL RECORD
+      * CREATION DATE : 04/02/2008
+      * PROGRAMMER    : Rafael Angel Cruz
+      * PURPOSE       : RECORD maintenance
+      *
+      *-------------------------------------------------------------------------
+      *	 Maintenance Log
+      *--------------------------------------------------------------------
+      *----------------------------------------------------------------
+      * Files
+      *----------------------------------------------------------------
+      *
+     FHremail   IF   E           K DISK
+->   FJrrpt6DF
+  CF   E             WORKSTN INFDS(WSDS)
+      *
+      * Standard include for all interactive programs
+      *   named hexadecimal constants for function keys
+     D @F03            C                   CONST(X'33')
+      *
+      * Standard include for all interactive programs
+      *   Defines standard constants
+     D @FALSE          C                   CONST('0')
+     D @TRUE           C                   CONST('1')
+      *
+      * Standard include for all interactive programs
+      *   display file information data structure
+     D WSDS            DS
+      *               Identifies the key pressed
+     D  KEY                  369    369
+      *               Identifies the subfile page rrn
+     D  PAGRRN               378    379B 0
+     D*
+     D* Program constants
+     D @BLANK          C                   CONST(' ')
+     D @NULL           C                   CONST(0)
+     D @ALL            C                   CONST('*ALL')
+     D @DIAG           C                   CONST('*DIAG')
+     D @ESCAP          C                   CONST('*ESCAPE')
+     D @CUSTK          C                   CONST(0)
+     D @PRSTK          C                   CONST(1)
+     D @CUQUE          C                   CONST('*')
+     D*
+     D* Program status data structure
+     D                SDS
+     D  @PGM                   1     10
+     D  @STAT                 11     15  0
+     D  @PARMS                37     39  0
+     D  @MSGID                40     46
+     D  @DATA                 91    169
+     D  @JOBNA               244    253
+     D  @USRNA               254    263
+     D  @JOBNO               264    269
+     D  @SRCF                304    313
+     D  @SRCL                314    323
+     D  @SRCM                324    333
+     D*
+     D* Message-related fields
+     D                 DS
+     D  MSGID                  1      7    INZ(' ')
+     D  MSGF                   8     27    INZ('QCPFMSG   QSYS      ')
+     D  MSGTXT                28    106    INZ(' ')
+     D  MSGLEN               107    110B 0 INZ(79)
+     D  MSGTYP               111    120    INZ(' ')
+     D  MSGQ                 121    130    INZ('*')
+     D  MSGSTK               131    134B 0 INZ(0)
+     D  MSGKEY               135    138    INZ(' ')
+     D  MSGERR               149    156    INZ(X'0000000000000000')
+     D  MSGNTY               157    160B 0 INZ(1)
+     D  MSGPQ                161    170    INZ('*')
+     D  MSGRMV               171    180    INZ(' ')
+     D  MSGCNT               181    190  0 INZ(0)
+      *
+      * Customer externally defined DS
+     D HREMAILDS     E DS                  EXTNAME(HREMAIL)
+      *
+->    *
+      *==============================================================*
+->   C     *ENTRY        PLIST
+->   C                   PARM                    PUSRID
+->   C                   PARM                    PMODE             1
+      *==============================================================*
+      *
+      *==============================================================*
+      * Program mainline                                             *
+      *==============================================================*
+      *
+     C                   EXSR      @LOAD
+      *
+      * Perform until exit requested using F03 or F12
+     C     @EXIT         DOUEQ     @TRUE
+      *
+     C                   SELECT
+     C     PMODE         WHENEQ    'C'
+     C                   EXFMT     ENTPNL
+     C     PMODE         WHENEQ    'A'
+     C                   EXFMT     ENTPNL2
+     C     PMODE         WHENEQ    'D'
+     C                   EXFMT     ENTPNL3
+     C                   ENDSL
+      *
+      *
+      * Process response
+     C     KEY           CASEQ     @F03          @F03SR
+     C                   CAS                     @ENTKY
+     C                   ENDCS
+      *
+     C                   ENDDO
+      *
+      * End of program, you can modify to leave *INLR = *OFF
+      *   and program will still work properly when called again
+      *
+     C                   MOVE      *ON           *INLR
+     C                   RETURN
+      *
+      *==============================================================*
+      * Subroutine Section of Program                                *
+      *==============================================================*
+      *
+      *==============================================================*
+      * Initialization Subroutine                                    *
+      *==============================================================*
+      *
+     C     *INZSR        BEGSR
+      *
+     C     *LIKE         DEFINE    USRID         PUSRID
+     C     *LIKE         DEFINE    @PGM          EDTPGM
+     C     *LIKE         DEFINE    @PGM          UPDPGM
+     C     *LIKE         DEFINE    @PGM          PGMQ
+      *
+      * Create program exit flag and set value to @FALSE
+     C                   MOVE      @FALSE        @EXIT             1
+     C                   MOVE      @PGM          PGMQ
+     C                   MOVE      @FALSE        @ERR              1
+     C                   MOVE      'JRRPT6E'     EDTPGM
+     C                   MOVE      'JRRPT6U'     UPDPGM
+     C                   Z-ADD     0             ERRRN             4 0
+     C                   ENDSR
+      *
+      *==============================================================*
+      * Load screen                                                  *
+      *==============================================================*
+      *
+     C     @LOAD         BEGSR
+      *
+      * Read a record
+     C     PUSRID        CHAIN     HREMAIL                            99
+     C                   ENDSR
+      *
+      *==============================================================*
+      * Process enter key after subfile display                      *
+      *==============================================================*
+      *
+     C     @ENTKY        BEGSR
+      *
+      * Remove previous error messages, reset error RRN
+     C                   EXSR      @RMVMS
+     C                   RESET                   ERRRN
+      *
+      * Call the external edit program for each change
+     C                   EXSR      @EDIT
+      *
+      * No error, then update customer record
+     C     @ERR          IFEQ      @FALSE
+     C                   EXSR      @UPDT
+     C                   EXSR      @F03SR
+     C                   ENDIF
+      *
+     C                   ENDSR
+      *
+->    *
+      *==============================================================*
+      * F03 key subroutine                                           *
+      *==============================================================*
+      *
+     C     @F03SR        BEGSR
+      *
+      * set exit program flag
+     C                   MOVE      @TRUE         @EXIT
+      *
+     C                   ENDSR
+      *
+      *==============================================================*
+      * Remove program messages.
+      *==============================================================*
+      *
+     C     @RMVMS        BEGSR
+      *
+     C                   MOVEL(P)  @CUQUE        MSGQ
+     C                   MOVEL(P)  @CUSTK        MSGSTK
+     C                   MOVEL(P)  @ALL          MSGRMV
+     C                   MOVE      *BLANKS       MSGKEY
+      *
+     C                   CALL      'QMHRMVPM'
+     C                   PARM                    MSGQ
+     C                   PARM                    MSGSTK
+     C                   PARM                    MSGKEY
+     C                   PARM                    MSGRMV
+     C                   PARM                    MSGERR
+     C                   Z-ADD     0             MSGCNT
+
+     C                   MOVE      *BLANKS       ERMSG
+     C                   ENDSR
+      *
+      *==============================================================*
+      *  Call external program to edit Customer Master record.       *
+      *==============================================================*
+     C     @EDIT         BEGSR
+      *
+     C                   RESET                   @ERR
+      *
+     C                   CALL      EDTPGM
+     C                   PARM                    HREMAILDS
+     C                   PARM                    RTNIND           11
+     C                   PARM                    @ERR
+     C                   PARM                    ERMSG
+     C                   PARM                    PMODE
+      *
+     C                   MOVEA     RTNIND        *IN(71)
+      *
+     C                   ENDSR
+      *
+      *==============================================================*
+      *  Call external program to update Customer Master.            *
+      *==============================================================*
+     C     @UPDT         BEGSR
+      *
+     C                   CALL      UPDPGM
+     C                   PARM                    HREMAILDS
+     C                   PARM                    PMODE
+      *
+     C                   ENDSR

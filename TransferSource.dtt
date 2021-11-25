@@ -1,0 +1,28 @@
+[DataTransferToAS400]
+Version=1.0
+[HostInfo]
+HostName=MEMASILD
+HostFile=CRUZR/QSAMPLES(JRRPT6U)
+FRFFile=
+CrtOpt=0
+HostFileType=1
+ObjAuth=0
+RecLen=92
+FileText=
+MbrText=
+[ClientInfo]
+PCFile=C:\RAC-RPG Examples\Full file maintenance\jrrpt6u.txt
+UseFDF=0
+PCFileType=1
+FDFFile=C:\RAC-RPG Examples\Full file maintenance\hremail.FDF
+ConvType=0
+SendExtraSheets=31
+[Properties]
+Check4Untrans=0
+Convert65535=0
+ConvertTabs=0
+Notify=1
+AutoRun=0
+AutoClose=0
+ShowWarnings=0
+UserOption=0

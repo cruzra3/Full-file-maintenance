@@ -1,0 +1,17 @@
+PGM PARM(&greeting)    
+DCL &greeting    *CHAR    5   
+DCL &msg         *CHAR   80 VALUE(' ')   
+DCL &terminal    *CHAR   10   
+DCL &user        *CHAR   10   
+MONMSG cpf0000
+begin:   
+RTVUSRPRF *CURRENT RTNUSRPRF(&user)   
+RTVJOBA JOB(&terminal)   
+CHGVAR &msg (&greeting                      *TCAT +                 
+              ','                           *BCAT +			  
+              &user                         *TCAT +			  
+              '!  You''re using terminal'   *BCAT +
+              &terminal                     *TCAT +                 
+              '.')   
+SNDPGMMSG MSG(&msg) MSGTYPE(*COMP)
+ENDPGM

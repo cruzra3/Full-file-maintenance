@@ -1,0 +1,26 @@
+     A*-------------------------------------------------------------
+     A* FILE NAME     : HREMAIL
+     A* DESCRIPTION   : HR EMAIL ADDRESSES
+     A* CREATION DATE : 03/24/2008
+     A* PROGRAMMER    : RAFAEL ANGEL CRUZ
+     A*
+     A* PURPOSE       : EMAIL ADDRESSES USE TO SEND REPORTS TO USERS
+     A*                 VIAL EMAIL
+     A*                                                                
+     A**************************************************************
+     A                                      UNIQUE
+     A          R HREMAF1                   TEXT('HR EMAIL ADDRESSES FILE')
+     A            GROUPID        2A         COLHDG('GROUP' 'ID.')
+      *                                     BE=BENEFITS
+      *                                     CO=COMPENSATION
+      *                                     JA=JAYUYA
+      *                                     TA=TALENT ADQUISITION
+     A            GRPDES        25A         COLHDG('GROUP' 'DESCR')
+     A            USRID         10A         COLHDG('USER' 'ID')
+     A            USRNAM        25A         COLHDG('USER' 'NAME')
+     A            EMAIL         60A         COLHDG('EMAIL' 'ADDRESS')
+     A            RCVEMAIL       1A         COLHDG('RECEIVE EMAIL?')
+      *                                     'Y'= USER TO RECEIVE REPORT BY EMAIL
+      *                                     ' '= BLANK USER WILL NOT RECEIVE
+      *                                          REPORT VIA EMAIL
+     A          K USRID

@@ -1,0 +1,136 @@
+     H
+      *-------------------------------------------------------------------------
+      * PROGRAM NAME  : JRRPT6E
+      * DESCRIPTION   : Edit HREMAIL for data entry errors
+      * CREATION DATE : 04/03/2008
+      * PROGRAMMER    : Rafael Angel Cruz
+      * PURPOSE       : File editing
+      *
+      *-------------------------------------------------------------------------
+      * Maintenance Log
+      *--------------------------------------------------------------------
+      *----------------------------------------------------------------
+      * Files
+      *----------------------------------------------------------------
+      *
+     FHremail   IF   E           K DISK
+     D INDP            S               *   INZ( %ADDR( *IN ))
+     D IND             DS                  BASED( INDP )
+     D ERRUSRID               71     71
+     D ERRUSRNAME             72     72
+     D ERRGRPID               73     73
+     D ERRGRPDES              74     74
+     D ERREMAIL               75     75
+     D ERRRCVEMAIL            76     76
+
+     D MSG             S             65    DIM(9) CTDATA PERRCD(1)
+     D @FALSE          C                   CONST('0')
+     D @TRUE           C                   CONST('1')
+      *
+     D HREMAILDS     E DS                  EXTNAME(Hremail)
+     D SAVEDS          DS           250
+
+->   C     *ENTRY        PLIST
+->   C                   PARM                    HREMAILDS
+->   C                   PARM                    RTNIND           11
+->   C                   PARM                    @ERR
+->   C                   PARM                    ERMSG            77
+->   C                   PARM                    PMODE             1
+
+     C                   RESET                   @ERR
+     C                   MOVEL     HREMAILDS     SAVEDS
+     C     USRID         CHAIN     HREMAIL                            21
+      *==========================================================
+     C                   DO
+      * RECORD NOT FOUND
+     C     *IN21         IFEQ      *ON
+     C     PMODE         ANDNE     'A'
+     C                   MOVE      USRID         MSG(05)
+     C                   MOVE      @TRUE         @ERR
+     C                   MOVE      *ON           *IN71
+     C                   MOVEL     MSG(05)       ERMSG
+     C                   LEAVE
+     C                   ENDIF
+      * RECORD FOUND
+     C     *IN21         IFEQ      *OFF
+     C                   MOVEL     SAVEDS        HREMAILDS
+     C                   ENDIF
+      * USRID
+     C     USRID         IFEQ      *BLANKS
+     C                   MOVE      USRID         MSG(01)
+     C                   MOVE      @TRUE         @ERR
+     C                   MOVE      *ON           *IN71
+     C                   MOVEL     MSG(01)       ERMSG
+     C                   LEAVE
+     C                   ENDIF
+      * USER NAME
+     C     USRNAM        IFEQ      *BLANKS
+     C                   MOVE      USRID         MSG(02)
+     C                   MOVE      @TRUE         @ERR
+     C                   MOVE      *ON           *IN72
+     C                   MOVEL     MSG(02)       ERMSG
+     C                   LEAVE
+     C                   ENDIF
+      *
+     C                   SELECT
+     C     GROUPID       WHENEQ    'BE'
+      * BE IS VALID
+     C     GROUPID       WHENEQ    'CO'
+      * CO IS VALID
+     C     GROUPID       WHENEQ    'JA'
+      * JA IS VALID
+     C     GROUPID       WHENEQ    'TA'
+      * TA IS VALID
+     C                   OTHER
+      * ERROR INVALID GROUP ID
+     C                   MOVE      USRID         MSG(03)
+     C                   MOVE      @TRUE         @ERR
+     C                   MOVE      *ON           *IN73
+     C                   MOVEL     MSG(03)       ERMSG
+     C                   LEAVE
+     C                   ENDSL
+      * GROUP DESCRIPTION
+     C     GRPDES        IFEQ      *BLANKS
+     C                   MOVE      USRID         MSG(04)
+     C                   MOVE      @TRUE         @ERR
+     C                   MOVE      *ON           *IN74
+     C                   MOVEL     MSG(04)       ERMSG
+     C                   LEAVE
+     C                   ENDIF
+      * RECEIVE EMAIL Y/
+     C                   SELECT
+      * 'Y' IS VALID
+     C     RCVEMAIL      WHENEQ    'Y'
+      * ' ' (BLANK) IS VALID
+     C     RCVEMAIL      WHENEQ    ' '
+     C                   OTHER
+     C                   MOVE      USRID         MSG(06)
+     C                   MOVE      @TRUE         @ERR
+     C                   MOVE      *ON           *IN76
+     C                   MOVEL     MSG(06)       ERMSG
+     C                   LEAVE
+     C                   ENDSL
+
+     C                   ENDDO
+      *==========================================================
+      *
+     C     @ERR          IFEQ      @TRUE
+     C                   MOVE      *ON           *IN79
+     C                   ENDIF
+      *
+     C                   MOVEA     *IN(71)       RTNIND
+     C                   MOVE      *ON           *INLR
+     C                   RETURN
+      *-------------------------------------------------------------------------
+     C     *INZSR        BEGSR
+     C                   MOVEA     *ALL'0'       *IN
+     C                   MOVE      @FALSE        @ERR              1
+     C                   ENDSR
+      *-------------------------------------------------------------------------
+** MSG ERROR MESSAGES
+INVALID USER ID                                                  01
+INVALID USER NAME                                                02
+INVALID GROUP ID MUST BE (BE,CO,JA,TA)                           03
+INVALID GROUP DESCRIPTION                                        04
+RECORD NOT FOUND                                                 05
+RECEIVE MAIL MUST BE A 'Y' OR A BLANK                            06
